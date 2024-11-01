@@ -8,19 +8,13 @@ This proof-of-concept demonstrates fine-grained access control for document mana
 - Access-controlled vector search based on user permissions
 - Demonstration of permission inheritance and access control checks
 
-## Tech Stack
-- WorkOS FGA for authorization
-- Pinecone for vector storage
-- LangChain for PDF processing
-- Node.js/TypeScript
-
 ## Prerequisites
 - Node.js v20.5.0 or newer
 - WorkOS API Key
 - Pinecone API Key and Environment
 - zsh (for running scripts)
 
-## Setup
+## Usage
 
 1. Copy environment variables and fill in secrets:
 ```bash
@@ -118,108 +112,9 @@ enjoying the same national rights, privileges, and protection...
 ❌ User user3 does NOT have access to "Universal Declaration of Human Rights" (doc_universal-declaration)
 ❌ User has no document access - skipping search
 ```
-
 </details>
 
-## Usage
-
-### Check Access Permissions
-```bash
-npm run check-access
-```
-Demonstrates checking whether users have access to specific documents.
-
-### Process Documents
-```bash
-npm run process-docs
-```
-Process PDF documents:
-- Chunks documents using LangChain
-- Creates vector embeddings
-- Stores in Pinecone with metadata including document ID
-
-### Query Documents
-```bash
-npm run query-docs
-```
-Demonstrates:
-- Checking user permissions before querying
-- Filtering Pinecone results based on accessible documents
-- Vector similarity search within permitted documents
-
-## Project Structure
-```
-/fga-poc/
-├── src/
-│   ├── config/
-│   │   └── workos.ts         # WorkOS client configuration
-│   ├── scripts/
-│   │   ├── defineResourceTypes.sh  # Creates FGA resource types
-│   │   ├── createWarrants.ts       # Sets up test permissions
-│   │   ├── checkAccess.ts         # Demonstrates access checks
-│   │   ├── processDocs.ts         # PDF processing pipeline
-│   │   └── queryDocs.ts           # Permission-aware querying
-│   └── models/
-│       └── types.ts          # TypeScript type definitions
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-## API Examples
-
-### Create a Warrant
-```typescript
-const warrant = {
-  object_type: 'document',
-  object_id: 'doc1',
-  relation: 'owner',
-  subject_type: 'user',
-  subject_id: 'user1'
-};
-
-const response = await workos.fga.batchWriteWarrants([warrant]);
-```
-
-### Check Access
-```typescript
-const hasAccess = await workos.fga.checkWarrant({
-  object_type: 'document',
-  object_id: 'doc1',
-  relation: 'viewer',
-  subject_type: 'user',
-  subject_id: 'user1'
-});
-```
-
-### Query Documents with Access Control
-```typescript
-const results = await queryDocuments('user1', 'search query');
-```
-
-## Development
-
-### Adding New Resource Types
-1. Add new resource type definition to `defineResourceTypes.sh`
-2. Run the script to create the new type
-3. Update TypeScript types in `models/types.ts`
-
-### Adding New Relations
-1. Modify the resource type definition in `defineResourceTypes.sh`
-2. Delete and recreate the resource type (note: this will delete existing warrants)
-3. Update relevant access check logic
-
-## Contributing
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
-
-## License
-MIT
-
-## Architecture
+## How It Works
 
 ### Setup Phase
 1. `defineResourceTypes.sh` creates two resource types in WorkOS FGA:
@@ -276,4 +171,22 @@ graph TD
     style I fill:#fff3e0
 ```
 
-This ensures users can only search within documents they have been granted access to, either as an owner or viewer.
+## Tech Stack
+- WorkOS FGA for authorization
+- Pinecone for vector storage
+- LangChain for PDF processing
+- Node.js/TypeScript
+
+## Project Structure
+```
+.
+├── data/                   # Sample PDF documents
+├── src/
+│   ├── scripts/
+│   │   ├── defineResourceTypes.sh  # Creates WorkOS resource types
+│   │   ├── setupPinecone.js        # Processes docs and creates vectors
+│   │   └── demo.js                 # Demonstrates access control
+│   └── utils/              # Helper functions
+├── .env.example           # Example environment variables
+└── README.md
+```

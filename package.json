@@ -1,0 +1,29 @@
+{
+  "name": "fga-pinecone-poc",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --loader ts-node/esm src/scripts/demo.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "zack proser (zack@workos.com)",
+  "license": "MIT",
+  "dependencies": {
+    "@langchain/community": "^0.3.11",
+    "@langchain/core": "^0.3.16",
+    "@langchain/textsplitters": "^0.1.0",
+    "@pinecone-database/pinecone": "^4.0.0",
+    "@workos-inc/node": "^7.30.0",
+    "dotenv": "^16.4.5",
+    "langchain": "^0.3.5",
+    "pdf-parse": "^1.1.1",
+    "pdfjs": "^2.5.3",
+    "pdfjs-dist": "^4.7.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  }
+}

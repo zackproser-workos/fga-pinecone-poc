@@ -1,6 +1,6 @@
 # Fine-Grained Authorization (FGA) Document Access Control POC
 
-![FGA and Vector DB Hero](./img/fga-and-vector-db-hero.png)
+![FGA and Vector DB Hero](./img/fga-and-vector-db-hero.webp)
 
 ## Overview
 This proof-of-concept and fully-runnable demo showcases fine-grained access control for document management using WorkOS FGA (Fine-Grained Authorization) integrated with the Pinecone vector database. 

@@ -58,6 +58,7 @@ async function getAccessibleDocuments(userId) {
   try {
     console.log(`\n=== Checking document access for user: ${userId} ===`);
     
+    // Query WorkOS FGA to get all documents where this user has viewer access
     const queryResponse = await workos.fga.query({
       q: `select document where user:${userId} is viewer`
     });
@@ -88,7 +89,8 @@ async function createBasicWarrants() {
   try {
     console.log("\n=== Creating Basic Warrants ===");
 
-    // Give user1 owner access to Sherlock Holmes
+    // Initial setup: user1 owns Sherlock Holmes and can share it
+    // user2 can only view Federalist Papers
     await workos.fga.writeWarrant({
       op: WarrantOp.Create,
       resource: {
@@ -103,7 +105,6 @@ async function createBasicWarrants() {
     });
     console.log(`👤 Granted user1 owner access to "Sherlock Holmes"`);
 
-    // Give user2 viewer access to Federalist Papers
     await workos.fga.writeWarrant({
       op: WarrantOp.Create,
       resource: {
@@ -124,11 +125,11 @@ async function createBasicWarrants() {
   }
 }
 
-// Modified searchPineconeWithAccess function
 async function searchPineconeWithAccess(userId, searchQuery) {
   try {
     console.log(`\n=== 🔍 Searching for user ${userId} with query: "${searchQuery}" ===`);
 
+    // First check what documents this user can access
     const accessibleDocs = await getAccessibleDocuments(userId);
     
     if (accessibleDocs.length === 0) {
@@ -140,9 +141,12 @@ async function searchPineconeWithAccess(userId, searchQuery) {
     const accessibleNames = accessibleDocs.map(getDocumentDisplayName);
     console.log(`✅ User can search in: ${accessibleNames.join(', ')}`);
     
+    // Convert search query to embedding and search only within allowed documents
     const queryEmbedding = await embeddings.embedQuery(searchQuery);
     const index = await setupPineconeClient();
 
+    // We use metadata filtering when querying Pinecone, specifying that we only 
+    // want results that have a parentDocumentId that is in the list of accessible documents
     const searchResponse = await index.query({
       vector: queryEmbedding,
       filter: {
@@ -167,12 +171,11 @@ async function searchPineconeWithAccess(userId, searchQuery) {
   }
 }
 
-// Add new function to share document access
 async function shareDocumentAccess(ownerId, newUserId) {
   try {
     console.log(`\n=== 🤝 Sharing documents with user${newUserId} ===`);
     
-    // First verify the owner has permission for both documents
+    // Security check: Verify that the sharing user actually has owner permissions
     const checkResult = await workos.fga.check({
       checks: [{
         resource: {
@@ -261,29 +264,20 @@ async function cleanupWarrants() {
   }
 }
 
-// Add sleep helper function
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-// Modified runDemo function
 async function runDemo() {
   try {
+    // Step 1: Set up initial permissions
     await createBasicWarrants();
     
-    // Wait for initial warrants to propagate
-    console.log('\n⏳ Waiting for initial warrants to propagate...');
-    await sleep(6000);
-
-    const searchQuery = "What are the principles of justice and liberty?";
-    
+    // Step 2: Test initial access state
     console.log('\n=== 🧪 Testing Access Controls and Search ===');
-    
-    // Initial search attempts
-    console.log('\n--- Initial Access State ---');
-    await searchPineconeWithAccess('user1', searchQuery);
-    await searchPineconeWithAccess('user2', searchQuery);
-    await searchPineconeWithAccess('user3', searchQuery);  // This should fail
+    await searchPineconeWithAccess('user1', searchQuery);  // Should see Sherlock Holmes
+    await searchPineconeWithAccess('user2', searchQuery);  // Should see Federalist Papers
+    await searchPineconeWithAccess('user3', searchQuery);  // Should see nothing (no access)
 
-    // Simulate sharing
+    // Step 3: Test document sharing
     console.log('\n--- Sharing Document ---');
     const shareSuccess = await shareDocumentAccess('user1', 'user4');
     

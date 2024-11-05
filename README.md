@@ -1,18 +1,19 @@
-# FGA Document Access Control POC
+# Fine-Grained Authorization (FGA) Document Access Control POC
 
 ## Overview
-This proof-of-concept demonstrates fine-grained access control for document management using WorkOS FGA (Fine-Grained Authorization) integrated with Pinecone vector database. The system allows:
+This proof-of-concept and fully-runnable demo showcases fine-grained access control for document management using WorkOS FGA (Fine-Grained Authorization) integrated with the Pinecone vector database. 
 
-- Document ownership and sharing permissions
-- PDF processing and chunking for vector storage
+## Supports 
+
+- Document ownership and sharing permissions for a document-based application
 - Access-controlled vector search based on user permissions
 - Demonstration of permission inheritance and access control checks
 
 ## Prerequisites
 - Node.js v20.5.0 or newer
 - WorkOS API Key
-- Pinecone API Key and Environment
-- zsh (for running scripts)
+- Pinecone API Key 
+- OpenAI API Key 
 
 ## Usage
 
@@ -23,9 +24,20 @@ cp .env.example .env.local
 ```
 
 2. Set up the WorkOS authorization model:
-```bash
-export WORKOS_API_KEY=your_key_here
-./src/scripts/defineResourceTypes.sh
+
+Visit the WorkOS FGA dashboard's schema section and enter the following code: 
+
+```
+version 0.1
+
+type user
+
+type document
+    relation owner [user]
+    relation viewer [user]
+
+    inherit viewer if
+        relation owner
 ```
 
 3. Process documents and create vector embeddings:
@@ -135,11 +147,6 @@ graph TD
     E[setupPinecone.js] -->|Processes| F[PDF Documents]
     F -->|Creates| G[Vector Embeddings]
     G -->|Stores in| H[Pinecone Index]
-
-    style A fill:#e1f5fe
-    style E fill:#e1f5fe
-    style H fill:#fff3e0
-    style B fill:#fff3e0
 ```
 
 ### Runtime Phase
@@ -164,11 +171,6 @@ graph TD
     
     H -->|Filters| I[Pinecone Query]
     I -->|Returns| J[Filtered Results]
-
-    style A fill:#e1f5fe
-    style B fill:#fff3e0
-    style G fill:#fff3e0
-    style I fill:#fff3e0
 ```
 
 ## Tech Stack
@@ -183,10 +185,8 @@ graph TD
 ├── data/                   # Sample PDF documents
 ├── src/
 │   ├── scripts/
-│   │   ├── defineResourceTypes.sh  # Creates WorkOS resource types
 │   │   ├── setupPinecone.js        # Processes docs and creates vectors
 │   │   └── demo.js                 # Demonstrates access control
-│   └── utils/              # Helper functions
-├── .env.example           # Example environment variables
+├── .env.example           # Example environment variables - copy this to .env.local 
 └── README.md
 ```

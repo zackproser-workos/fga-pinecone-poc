@@ -59,13 +59,16 @@ async function getAccessibleDocuments(userId) {
     console.log(`\n=== Checking document access for user: ${userId} ===`);
     
     const queryResponse = await workos.fga.query({
-      q: `select document where user:${userId} is viewer`,
+      q: `select document where user:${userId} is viewer`
     });
 
+    console.log(`=== FGA Query Response ===`);
     console.log(`%`, queryResponse.data);
 
-    // Extract resource_id from each result object in the list.data array
-    const accessibleDocs = queryResponse.data.map(result => result.resourceId);
+    // Extract document ID from each result object
+    const accessibleDocs = queryResponse.data.map(result => 
+      result.resourceId
+    );
     
     if (accessibleDocs.length > 0) {
       const accessibleNames = accessibleDocs.map(getDocumentDisplayName);
@@ -133,6 +136,7 @@ async function searchPineconeWithAccess(userId, searchQuery) {
       return [];
     }
 
+    // Only proceed with search if we have accessible documents
     const accessibleNames = accessibleDocs.map(getDocumentDisplayName);
     console.log(`✅ User can search in: ${accessibleNames.join(', ')}`);
     
@@ -159,21 +163,142 @@ async function searchPineconeWithAccess(userId, searchQuery) {
     return searchResponse.matches;
   } catch (error) {
     console.error('Error in search:', error);
-    throw error;
+    return [];
   }
 }
+
+// Add new function to share document access
+async function shareDocumentAccess(ownerId, newUserId) {
+  try {
+    console.log(`\n=== 🤝 Sharing documents with user${newUserId} ===`);
+    
+    // First verify the owner has permission for both documents
+    const checkResult = await workos.fga.check({
+      checks: [{
+        resource: {
+          resourceType: 'document',
+          resourceId: 'doc_sherlock-holmes',
+        },
+        relation: 'owner',
+        subject: {
+          resourceType: 'user',
+          resourceId: ownerId,
+        },
+      }]
+    });
+
+    if (!checkResult.isAuthorized()) {
+      console.log(`❌ User ${ownerId} is not owner of the documents - cannot share`);
+      return false;
+    }
+
+    // Grant viewer access to both documents
+    const documentsToShare = [
+      'doc_sherlock-holmes',
+      'doc_federalist-papers'
+    ];
+
+    for (const docId of documentsToShare) {
+      await workos.fga.writeWarrant({
+        op: WarrantOp.Create,
+        resource: {
+          resourceType: 'document',
+          resourceId: docId,
+        },
+        relation: 'viewer',
+        subject: {
+          resourceType: 'user',
+          resourceId: newUserId,
+        },
+      });
+      console.log(`✅ Shared "${getDocumentDisplayName(docId)}" with user${newUserId}`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error sharing document access:', error);
+    return false;
+  }
+}
+
+// Add function to clean up warrants
+async function cleanupWarrants() {
+  try {
+    console.log("\n=== 🧹 Cleaning up Warrants ===");
+    
+    // Delete all warrants created during demo
+    const warrants = [
+      // user1 owner of Sherlock Holmes
+      {
+        resource: { resourceType: 'document', resourceId: 'doc_sherlock-holmes' },
+        relation: 'owner',
+        subject: { resourceType: 'user', resourceId: 'user1' },
+      },
+      // user2 viewer of Federalist Papers
+      {
+        resource: { resourceType: 'document', resourceId: 'doc_federalist-papers' },
+        relation: 'viewer',
+        subject: { resourceType: 'user', resourceId: 'user2' },
+      },
+      // user3 viewer of Sherlock Holmes (created during share)
+      {
+        resource: { resourceType: 'document', resourceId: 'doc_sherlock-holmes' },
+        relation: 'viewer',
+        subject: { resourceType: 'user', resourceId: 'user3' },
+      },
+    ];
+
+    for (const warrant of warrants) {
+      await workos.fga.writeWarrant({
+        op: WarrantOp.Delete,
+        ...warrant,
+      });
+    }
+    
+    console.log("✅ All warrants cleaned up");
+  } catch (error) {
+    console.error('Error cleaning up warrants:', error);
+  }
+}
+
+// Add sleep helper function
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Modified runDemo function
 async function runDemo() {
   try {
     await createBasicWarrants();
+    
+    // Wait for initial warrants to propagate
+    console.log('\n⏳ Waiting for initial warrants to propagate...');
+    await sleep(6000);
 
     const searchQuery = "What are the principles of justice and liberty?";
     
     console.log('\n=== 🧪 Testing Access Controls and Search ===');
+    
+    // Initial search attempts
+    console.log('\n--- Initial Access State ---');
     await searchPineconeWithAccess('user1', searchQuery);
     await searchPineconeWithAccess('user2', searchQuery);
-    await searchPineconeWithAccess('user3', searchQuery);
+    await searchPineconeWithAccess('user3', searchQuery);  // This should fail
+
+    // Simulate sharing
+    console.log('\n--- Sharing Document ---');
+    const shareSuccess = await shareDocumentAccess('user1', 'user4');
+    
+    if (shareSuccess) {
+      // Wait for FGA consistency
+      console.log('\n⏳ Waiting to propagate changes...');
+      await sleep(4000); 
+      
+      // Test access after sharing
+      console.log('\n--- Access After Sharing ---');
+      await searchPineconeWithAccess('user4', searchQuery);  // This should now succeed
+    }
+    
+    // Clean up at the end
+    await cleanupWarrants();
     
   } catch (error) {
     console.error('Demo failed:', error);
